@@ -3,32 +3,50 @@ class CheckLastEventStatus {
     private readonly loadLastEventRepository: LoadLastEventRepository
   ) {}
 
-  async perform(groupId: string): Promise<void> {
+  async perform(groupId: string): Promise<string> {
     await this.loadLastEventRepository.loadLastEvent(groupId);
+
+    return 'done';
   }
 }
 
 interface LoadLastEventRepository {
-  loadLastEvent: (groupId: string) => Promise<void>;
+  loadLastEvent: (groupId: string) => Promise<undefined>;
 }
 
-class LoadLastEventRepositoryMock implements LoadLastEventRepository {
+class LoadLastEventRepositorySpy implements LoadLastEventRepository {
   groupId?: string;
-  
-  async loadLastEvent(groupId: string): Promise<void> {
+  output: undefined;
+
+  async loadLastEvent(groupId: string): Promise<undefined> {
     this.groupId = groupId;
-  };
+
+    return this.output;
+  }
 }
+
+const makeSut = () => {
+  const loadLastEventRepository = new LoadLastEventRepositorySpy();
+  const sut = new CheckLastEventStatus(loadLastEventRepository);
+
+  return { sut, loadLastEventRepository };
+};
 
 describe('CheckLastEventStatus', () => {
   it('should get last event data', async () => {
-    const loadLastEventRepository = new LoadLastEventRepositoryMock();
-    const checkLastEventStatus = new CheckLastEventStatus(
-      loadLastEventRepository
-    );
+    const { sut, loadLastEventRepository } = makeSut();
 
-    await checkLastEventStatus.perform('any_group_id');
+    await sut.perform('any_group_id');
 
     expect(loadLastEventRepository.groupId).toBe('any_group_id');
+  });
+
+  it('should return status done when group has no event', async () => {
+    const { sut, loadLastEventRepository } = makeSut();
+    loadLastEventRepository.output = undefined;
+
+    const status = await sut.perform('any_group_id');
+
+    expect(status).toBe('done');
   });
 });
